@@ -21,7 +21,7 @@ export default function Home() {
 
   useEffect(() => {
     const hex = hsb2hex(hue, saturation, brightness);
-    setHex(hex + alphaToHex(alpha));
+    setHex(alpha < 1 ? hex + alphaToHex(alpha) : hex);
   }, [hue, saturation, brightness, alpha]);
 
   const rgb = hsb2rgb(hue, saturation, brightness);
