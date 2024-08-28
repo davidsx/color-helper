@@ -53,16 +53,18 @@ export default function usePicker<ConstraintElement extends HTMLElement = HTMLDi
     return { x: 0, y: 0 };
   }, [pickerPosition]);
 
-  const updatePickerPosition = useCallback((mouseEvent: MouseEvent) => {
+  const updatePickerPosition = useCallback((event: MouseEvent | TouchEvent) => {
     const constraint = constraintRef.current;
     const picker = pickerRef.current;
 
     if (picker && constraint) {
       const { xMin, xMax, yMin, yMax } = getConstraint(constraint, picker);
 
+      const clientX = 'clientX' in event ? event.clientX : event.touches[0].clientX;
+      const clientY = 'clientY' in event ? event.clientY : event.touches[0].clientY;
       const { left, top } = constraint.getBoundingClientRect();
-      const x = mouseEvent.clientX - left - picker.clientWidth / 2;
-      const y = mouseEvent.clientY - top - picker.clientHeight / 2;
+      const x = clientX - left - picker.clientWidth / 2;
+      const y = clientY - top - picker.clientHeight / 2;
 
       setPickerPosition({
         x: clamp(x, xMax, xMin),
@@ -71,19 +73,34 @@ export default function usePicker<ConstraintElement extends HTMLElement = HTMLDi
     }
   }, []);
 
-  const mouseUp = useCallback(() => setIsPicking(false), []);
+  const pickerStop = useCallback(() => setIsPicking(false), []);
 
   const mouseDown = useCallback(
-    (mouseEvent: MouseEvent) => {
-      updatePickerPosition(mouseEvent);
+    (event: MouseEvent) => {
+      updatePickerPosition(event);
       setIsPicking(true);
     },
     [updatePickerPosition]
   );
 
   const mouseMove = useCallback(
-    (mouseEvent: MouseEvent) => {
-      if (isPicking) updatePickerPosition(mouseEvent);
+    (event: MouseEvent) => {
+      if (isPicking) updatePickerPosition(event);
+    },
+    [isPicking, updatePickerPosition]
+  );
+
+  const touchStart = useCallback(
+    (event: TouchEvent) => {
+      updatePickerPosition(event);
+      setIsPicking(true);
+    },
+    [updatePickerPosition]
+  );
+
+  const touchMove = useCallback(
+    (event: TouchEvent) => {
+      if (isPicking) updatePickerPosition(event);
     },
     [isPicking, updatePickerPosition]
   );
@@ -94,16 +111,24 @@ export default function usePicker<ConstraintElement extends HTMLElement = HTMLDi
 
     if (picker && constraint) {
       constraint.addEventListener('mousedown', mouseDown);
-      window.addEventListener('mouseup', mouseUp);
+      constraint.addEventListener('touchstart', touchStart);
       window.addEventListener('mousemove', mouseMove);
+      window.addEventListener('touchmove', touchMove);
+      window.addEventListener('mouseup', pickerStop);
+      window.addEventListener('touchend', pickerStop);
+      window.addEventListener('touchcancel', pickerStop);
 
       return () => {
         constraint.removeEventListener('mousedown', mouseDown);
-        window.removeEventListener('mouseup', mouseUp);
+        constraint.removeEventListener('touchstart', touchStart);
         window.removeEventListener('mousemove', mouseMove);
+        window.removeEventListener('touchmove', touchMove);
+        window.removeEventListener('mouseup', pickerStop);
+        window.removeEventListener('touchend', pickerStop);
+        window.removeEventListener('touchcancel', pickerStop);
       };
     }
-  }, [mouseDown, mouseMove, mouseUp]);
+  }, [mouseDown, mouseMove, pickerStop, touchMove, touchStart]);
 
   return { pickerPosition, normalizedValue, isPicking, pickerRef, constraintRef };
 }
